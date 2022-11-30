@@ -11,10 +11,10 @@ const register = async (req, res) => {
   //4. Token Generation
 
   const { fullname, age, gender, email, password } = req.body;
-  if (!req.file) {
+  /* if (!req.file) {
     console.log("No file");
     return;
-  }
+  } */
   try {
     const existingUser = await userModel.findOne({ email: email });
     if (existingUser) {
@@ -27,23 +27,38 @@ const register = async (req, res) => {
     //Upload profile picture to Cloudinary first
     console.log("Req.file: ", req.file);
     let cloudinaryResult;
-    try {
-      cloudinaryResult = await cloudinary.uploader.upload(req.file.path, {
-        folder: "AlbinoNetwork_Profile_Pictures",
+    let result;
+    if (req.file) {
+      try {
+        console.log("Profile Picture Provided");
+        cloudinaryResult = await cloudinary.uploader.upload(req.file.path, {
+          folder: "AlbinoNetwork_Profile_Pictures",
+        });
+        result = await userModel.create({
+          fullname: fullname,
+          profile_picture_url: cloudinaryResult.secure_url,
+          age: age,
+          gender: gender,
+          email: email,
+          password: hashedPassword,
+        });
+      } catch (error) {
+        console.log("Cloudinary upload error: ", error);
+        return res.send(error);
+      }
+    } else {
+      console.log("No Profile Picture ");
+      result = await userModel.create({
+        fullname: fullname,
+        profile_picture_url:
+          "https://res.cloudinary.com/dcqa6vckq/image/upload/v1669847401/samples/60111_otkwmp.jpg",
+        age: age,
+        gender: gender,
+        email: email,
+        password: hashedPassword,
       });
-    } catch (error) {
-      console.log("Cloudinary upload error: ", error);
-      return res.send(error);
     }
 
-    const result = await userModel.create({
-      fullname: fullname,
-      profile_picture_url: cloudinaryResult.secure_url,
-      age: age,
-      gender: gender,
-      email: email,
-      password: hashedPassword,
-    });
     console.log(SECRET_KEY);
     const token = jwt.sign(
       { email: result.email, id: result._id },
